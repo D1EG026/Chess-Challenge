@@ -41,7 +41,6 @@ namespace ChessChallenge.API
 			var data = Application.APIHelpers.MoveHelper.CreateMoveFromName(moveName, board);
 			move = data.move;
 			pieceTypeData = (ushort)((int)data.pieceType | ((int)data.captureType << 3));
-
         }
 
         /// <summary>

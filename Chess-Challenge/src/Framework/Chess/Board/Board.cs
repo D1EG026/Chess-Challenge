@@ -82,8 +82,7 @@ namespace ChessChallenge.Chess
                 }
             }
         }
-
-
+        
         // Is current player in check?
         // Note: caches check value so calling multiple times does not require recalculating
         public bool IsInCheck()
