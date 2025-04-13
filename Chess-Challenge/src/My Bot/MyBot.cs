@@ -2,25 +2,27 @@
 using System.Collections.Generic;
 using System.Linq;
 using ChessChallenge.API;
+using ChessChallenge.Application;
 
 public class MyBot : IChessBot
 {
     int[] pieceValues = { 0, 100, 300, 300, 500, 900, 10000 };
     public Move Think(Board board, Timer timer)
     {
-        Move[] moves = board.GetLegalMoves();
-        SortedList<Move, float> evaluatedMoves = new();
+        Move[] legalMoves = board.GetLegalMoves();
+        List<KeyValuePair<Move, float>> evaluatedMoves = new();
         float maxScore = float.MinValue;
-        Move bestMove = moves[0];
-        foreach (var move in moves)
+        Move bestMove = legalMoves[0];
+        foreach (var move in legalMoves)
         {
             float moveScore = GetImmediateScore(board);
-            evaluatedMoves.Add(move, moveScore); // O calcular otra vez la puntuacion solo al final y asi no se guarda tambien en diccionario
+            evaluatedMoves.Add(new(move, moveScore)); // O calcular otra vez la puntuacion solo al final y asi no se guarda tambien en diccionario
             if (moveScore > maxScore)
                 maxScore = moveScore;
-
-            bestMove = evaluatedMoves.Aggregate((x, y) => x.Value > y.Value ? x : y).Key;
         }
+        bestMove = evaluatedMoves.First(x => x.Value == maxScore).Key;
+        //bestMove = evaluatedMoves.Aggregate((x, y) => x.Value > y.Value ? x : y).Key;
+        bestMove = legalMoves[0];
         return bestMove;
     }
     float score = 0;
@@ -35,34 +37,51 @@ public class MyBot : IChessBot
             score = positionalScore;
             board.UndoMove(move);
         }
+        Console.WriteLine("Score: " + score);
         return score;
     }
 
     private float GetPositionalScore(bool isWhiteToMove, Board board)
     {
-        foreach (var pawn in board.GetPieceList(PieceType.Pawn, isWhiteToMove)) //GetPieceBitboard quizas mas eficiente
+        //derecha x>>
+        //izquierda x<<
+        //arriba x>>8
+        //abajo x<<8
+        foreach (var pawn in board.GetPieceList(PieceType.Pawn, isWhiteToMove))
         {
-            // si el peon esta protegiendo otra pieza
-            if (board.GetPiece(new(pawn.Square.Index)).IsWhite)
-            {
-                score += 10; //bonus por proteger
-            }
-        }
-        foreach (var knight in board.GetPieceList(PieceType.Knight, isWhiteToMove))
-        {
-            int x = knight.Square.Index % 8;
-            int y = knight.Square.Index / 8;
+            ulong pawnBitBoard = (ulong)Math.Pow(2, pawn.Square.Index);
 
-            if (x > 2 && x < 5 && y > 2 && y < 5)
-            {
-                score += 10; //bonus por posicion central
-            }
-            else if (x > 1 && x < 6 && y > 1 && y < 6)
-            {
-                score += 5; //bonus por posicion semi-central
-            }
+            // if ((((pawnBitBoard << 1) >> 8) & board.GetPieceBitboard(PieceType.Knight, isWhiteToMove)) > 1)
+            if ((AddDirection(pawnBitBoard, 1, 1, isWhiteToMove) & board.GetPieceBitboard(PieceType.Knight, isWhiteToMove)) > 1)
+                // si el peon esta protegiendo otra pieza
+                score += 1;
         }
+        
+        // board.GetPieceBitboard(PieceType.Pawn, isWhiteToMove);
+        // foreach (var knight in board.GetPieceList(PieceType.Knight, isWhiteToMove))
+        // {
+        //     int x = knight.Square.Index % 8;
+        //     int y = knight.Square.Index / 8;
+
+        //     if (x > 2 && x < 5 && y > 2 && y < 5)
+        //     {
+        //         score += 10; //bonus por posicion central
+        //     }
+        //     else if (x > 1 && x < 6 && y > 1 && y < 6)
+        //     {
+        //         score += 5; //bonus por posicion semi-central
+        //     }
+        // }
         return score;
+    }
+    ulong AddDirection(ulong input, int x, int y, bool isWhite)
+    {
+        if (!isWhite)
+        {
+            x = -x;
+            y = -y;
+        }
+        return input + (ulong)Math.Pow(2, x + y * 8);
     }
 
     int GetMaterialScore(bool isWhite, Board board)
